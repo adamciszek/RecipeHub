@@ -1,6 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
-import tkinter.font as tkFont
+from tkinter import ttk, messagebox, font
 
 # Assume you have a customtkinter module with a CTkButton
 from customtkinter import CTkButton
@@ -13,8 +12,7 @@ class RecipeApp:
         self.master.title("Recipe App")
         self.master.geometry("300x300")
 
-        azonix_font = tkFont.Font(family="Azonix", size=12)
-        self.master.option_add("*Font", azonix_font)
+        font.nametofont("TkDefaultFont").configure(family="Azonix", size=12)
 
         self.logged_in_username = None
 
@@ -55,8 +53,8 @@ class RecipeApp:
 
     def show_login_page(self):
         # Create widgets for the login page
-        self.label_username = tk.Label(self.master, text="Username:", font=("Courier", 14))
-        self.label_password = tk.Label(self.master, text="Password:", font=("Courier", 14))
+        self.label_username = tk.Label(self.master, text="Username:")
+        self.label_password = tk.Label(self.master, text="Password:")
         self.entry_username = tk.Entry(self.master, font=("Courier", 14))
         self.entry_password = tk.Entry(self.master, show="*", font=("Courier", 14))
         self.button_login = CTkButton(self.master, text="Login", command=self.login, font=("Courier", 14))
