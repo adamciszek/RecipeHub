@@ -10,14 +10,14 @@ class RecipeApp:
     def __init__(self, master):
         self.master = master
         self.master.title("Recipe App")
-        self.master.geometry("300x300")
+        self.master.geometry("400x400")
 
-        font.nametofont("TkDefaultFont").configure(family="Azonix", size=12)
+        self.style = ttk.Style()
+        self.style.configure("TLabel", font=("Azonix", 14))  # Use the Azonix font
+        self.style.configure("TButton", font=("New York", 14))
+        self.style.configure("TFrame", background="#f0f0f0")  # Light gray background
 
         self.logged_in_username = None
-
-        # Initially, show the login page
-        self.show_login_page()
 
         # Connect to the SQLite database (or create a new one if it doesn't exist)
         self.connection = sqlite3.connect("recipe_database.db")
@@ -25,6 +25,9 @@ class RecipeApp:
 
         # Create tables if they don't exist
         self.create_tables()
+
+        # Initially, show the login page
+        self.show_login_page()
 
     def create_tables(self):
         # Create a 'users' table
@@ -53,13 +56,13 @@ class RecipeApp:
 
     def show_login_page(self):
         # Create widgets for the login page
-        self.label_username = tk.Label(self.master, text="Username:")
-        self.label_password = tk.Label(self.master, text="Password:")
-        self.entry_username = tk.Entry(self.master, font=("Courier", 14))
-        self.entry_password = tk.Entry(self.master, show="*", font=("Courier", 14))
-        self.button_login = CTkButton(self.master, text="Login", command=self.login, font=("Courier", 14))
+        self.label_username = tk.Label(self.master, text="Username:", font=("Montserrat", 14))
+        self.label_password = tk.Label(self.master, text="Password:", font=("Montserrat", 14))
+        self.entry_username = tk.Entry(self.master, font=("Montserrat", 14))
+        self.entry_password = tk.Entry(self.master, show="*", font=("Montserrat", 14))
+        self.button_login = CTkButton(self.master, text="Login", command=self.login, font=("Montserrat", 14))
         self.button_create_account = CTkButton(self.master, text="Create Account",
-                                               command=self.show_create_account_page, font=("Courier", 14))
+                                               command=self.show_create_account_page, font=("Montserrat", 14))
 
         self.label_username.pack(pady=10)
         self.entry_username.pack(pady=5)
@@ -109,6 +112,8 @@ class RecipeApp:
 
         self.button_submit = CTkButton(self.master, text="Submit", command=self.create_account, font=("Courier", 14))
 
+        self.master.bind('<Return>', lambda event: self.create_account())
+
         self.label_new_username.pack(pady=10)
         self.entry_new_username.pack(pady=5)
         self.label_new_password.pack(pady=10)
@@ -155,8 +160,12 @@ class RecipeApp:
 
     def show_recipe_app(self):
         # Create a notebook (tabbed interface)
-        self.notebook = ttk.Notebook(self.master)
+        self.notebook = ttk.Notebook(self.master, style="TNotebook")
         self.notebook.pack(fill=tk.BOTH, expand=True)
+
+        # Configure TNotebook style with Azonix font
+        self.style.configure("TNotebook", font=("Azonix", 14))
+        self.style.configure("TNotebook.Tab", font=("Azonix", 14))
 
         # Create tabs
         my_recipes_tab = ttk.Frame(self.notebook)
@@ -184,27 +193,36 @@ class RecipeApp:
         self.cursor.execute("SELECT name FROM recipes WHERE user_id=?", (user_id,))
         recipes = self.cursor.fetchall()
 
-        # Display the recipe names
+        # Display the recipe names using modern buttons
         for recipe in recipes:
-            recipe_name_label = tk.Label(tab, text=recipe[0], font=("Courier", 14))
-            recipe_name_label.pack(pady=5)
-            recipe_name_label.bind("<Button-1>", lambda event, name=recipe[0]: self.show_recipe_details(name, tab))
+            recipe_button = tk.Button(tab, text=recipe[0], command=lambda r=recipe[0]: self.show_recipe_details(r, tab), font=("SF Mono", 20), relief=tk.GROOVE)
+            recipe_button.pack(pady=5)
 
     def show_recipe_details(self, recipe_name, tab):
         # Fetch the details of the selected recipe from the database
         self.cursor.execute("SELECT ingredients, instructions FROM recipes WHERE name=?", (recipe_name,))
         recipe_details = self.cursor.fetchone()
 
-        # Create a new window to display the recipe details
-        recipe_details_window = tk.Toplevel(self.master)
-        recipe_details_window.title(recipe_name)
+        # Create a new page to display the recipe details
+        details_page = ttk.Frame(self.master, style="TFrame")
+        details_page.place(in_=tab, relwidth=1, relheight=1)
 
-        # Display the recipe details in the new window
-        tk.Label(recipe_details_window, text="Ingredients:", font=("Courier", 12)).pack(pady=5)
-        tk.Label(recipe_details_window, text=recipe_details[0], font=("Courier", 12)).pack(pady=5)
+        ttk.Label(details_page, text="Recipe Details", font=("New York", 18)).pack(pady=10)
 
-        tk.Label(recipe_details_window, text="Instructions:", font=("Courier", 12)).pack(pady=5)
-        tk.Label(recipe_details_window, text=recipe_details[1], font=("Courier", 12)).pack(pady=5)
+        ttk.Label(details_page, text="Ingredients:", font=("New York", 16)).pack(pady=5)
+        ttk.Label(details_page, text=recipe_details[0], font=("SF Mono", 14), wraplength=300).pack(pady=5)
+
+        ttk.Label(details_page, text="Instructions:", font=("New York", 16)).pack(pady=5)
+        ttk.Label(details_page, text=recipe_details[1], font=("SF Mono", 14), wraplength=300).pack(pady=5)
+
+        # Add a button to go back to the "My Recipes" tab
+        back_button = tk.Button(details_page, text="Back to My Recipes", command=lambda: self.hide_details_page(details_page, tab), font=("New York", 14), relief=tk.GROOVE)
+        back_button.pack(pady=10)
+
+    def hide_details_page(self, details_page, tab):
+        details_page.place_forget()  # Hide the details page
+        tab.lift()  # Show the "My Recipes" tab
+
 
     def create_other_recipes_tab(self, tab):
         # Get recipes created by other users
@@ -228,27 +246,27 @@ class RecipeApp:
         return recipes
 
     def create_add_recipe_tab(self, tab):
-        label = tk.Label(tab, text="Add Recipe Form", font=("Courier", 16))
+        label = tk.Label(tab, text="Add Recipe Form", font=("New York Large", 16))
         label.pack(pady=20)
 
         # Add Recipe Form Elements
-        tk.Label(tab, text="Recipe Name:", font=("Courier", 12)).pack(pady=10)
-        self.recipe_name_entry = tk.Entry(tab, font=("Courier", 12))
+        tk.Label(tab, text="Recipe Name:", font=("New York", 12)).pack(pady=10)
+        self.recipe_name_entry = tk.Entry(tab, font=("SF Mono", 12))
         self.recipe_name_entry.pack(pady=5)
 
-        tk.Label(tab, text="Ingredients:", font=("Courier", 12)).pack(pady=10)
+        tk.Label(tab, text="Ingredients:", font=("New York", 12)).pack(pady=10)
         self.ingredients_entries = []  # List to store ingredient Entry widgets
         for i in range(5):  # You can adjust the number of ingredient Entry widgets as needed
-            ingredient_entry = tk.Entry(tab, font=("Courier", 12))
+            ingredient_entry = tk.Entry(tab, font=("SF Mono", 12))
             ingredient_entry.pack(pady=5)
             self.ingredients_entries.append(ingredient_entry)
 
-        tk.Label(tab, text="Instructions:", font=("Courier", 12)).pack(pady=10)
-        self.instructions_text = tk.Text(tab, height=8, width=40, font=("Courier", 12))
+        tk.Label(tab, text="Instructions:", font=("New York", 12)).pack(pady=10)
+        self.instructions_text = tk.Text(tab, height=8, width=40, font=("SF Mono", 12))
         self.instructions_text.pack(pady=5)
 
         # Use CTkButton from customtkinter instead of tk.Button
-        add_button = CTkButton(tab, text="Add Recipe", command=self.add_recipe, font=("Courier", 14))
+        add_button = CTkButton(tab, text="Add Recipe", command=self.add_recipe, font=("Montserrat", 14))
         add_button.pack(pady=20)
 
     def add_recipe(self):
