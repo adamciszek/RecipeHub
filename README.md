@@ -17,6 +17,7 @@ This is a simple Recipe App created using Tkinter. The app allows users to log i
 
 - `main.py`: The main script to run the Recipe App.
 - `README.md`: This file, providing information about the project.
+- `recipe_database.db`: Contains all data related to users and recipes.
 - Other files: Add any additional files or folders as needed.
 
 &copy; Adam Ciszek 2023
