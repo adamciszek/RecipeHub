@@ -13,6 +13,8 @@ class RecipeApp:
         self.master.geometry("600x400")
         self.master.option_add("*Font", "Courier 12")
 
+        self.logged_in_username = None
+
         # Initially, show the login page
         self.show_login_page()
 
@@ -33,6 +35,18 @@ class RecipeApp:
             )
         ''')
 
+        # Create a 'recipes' table
+        self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS recipes (
+                    id INTEGER PRIMARY KEY,
+                    user_id INTEGER,
+                    name TEXT,
+                    ingredients TEXT,
+                    instructions TEXT,
+                    FOREIGN KEY (user_id) REFERENCES users(id)
+                )
+            ''')
+
         # Commit the changes
         self.connection.commit()
 
@@ -52,6 +66,8 @@ class RecipeApp:
         self.button_login.pack(pady=10)
         self.button_create_account.pack(pady=10)
 
+        self.master.geometry("300x300")
+
     def login(self):
         # Implement your login authentication logic here
         username = self.entry_username.get()
@@ -62,6 +78,9 @@ class RecipeApp:
         user = self.cursor.fetchone()
 
         if user:
+            # Set the logged-in username
+            self.logged_in_username = username
+
             # Destroy login page widgets
             self.destroy_login_widgets()
 
@@ -150,9 +169,39 @@ class RecipeApp:
         self.create_all_recipes_tab(all_recipes_tab)
         self.create_add_recipe_tab(add_recipe_tab)
 
+        # Window size
+        self.master.geometry("800x600")
+
     def create_my_recipes_tab(self, tab):
-        label = tk.Label(tab, text="Display My Recipes content here", font=("Courier", 16))
-        label.pack(padx=20, pady=20)
+        # Get the user's ID from the stored username
+        self.cursor.execute("SELECT id FROM users WHERE username=?", (self.logged_in_username,))
+        user_id = self.cursor.fetchone()[0]
+
+        # Retrieve the user's recipes from the 'recipes' table
+        self.cursor.execute("SELECT name FROM recipes WHERE user_id=?", (user_id,))
+        recipes = self.cursor.fetchall()
+
+        # Display the recipe names
+        for recipe in recipes:
+            recipe_name_label = tk.Label(tab, text=recipe[0], font=("Courier", 14))
+            recipe_name_label.pack(pady=5)
+            recipe_name_label.bind("<Button-1>", lambda event, name=recipe[0]: self.show_recipe_details(name, tab))
+
+    def show_recipe_details(self, recipe_name, tab):
+        # Fetch the details of the selected recipe from the database
+        self.cursor.execute("SELECT ingredients, instructions FROM recipes WHERE name=?", (recipe_name,))
+        recipe_details = self.cursor.fetchone()
+
+        # Create a new window to display the recipe details
+        recipe_details_window = tk.Toplevel(self.master)
+        recipe_details_window.title(recipe_name)
+
+        # Display the recipe details in the new window
+        tk.Label(recipe_details_window, text="Ingredients:", font=("Courier", 12)).pack(pady=5)
+        tk.Label(recipe_details_window, text=recipe_details[0], font=("Courier", 12)).pack(pady=5)
+
+        tk.Label(recipe_details_window, text="Instructions:", font=("Courier", 12)).pack(pady=5)
+        tk.Label(recipe_details_window, text=recipe_details[1], font=("Courier", 12)).pack(pady=5)
 
     def create_all_recipes_tab(self, tab):
         label = tk.Label(tab, text="Display All Recipes content here", font=("Courier", 16))
@@ -164,24 +213,69 @@ class RecipeApp:
 
         # Add Recipe Form Elements
         tk.Label(tab, text="Recipe Name:", font=("Courier", 12)).pack(pady=10)
-        recipe_name_entry = tk.Entry(tab, font=("Courier", 12))
-        recipe_name_entry.pack(pady=5)
+        self.recipe_name_entry = tk.Entry(tab, font=("Courier", 12))  # Make it an instance attribute
+        self.recipe_name_entry.pack(pady=5)
 
         tk.Label(tab, text="Ingredients:", font=("Courier", 12)).pack(pady=10)
-        ingredients_text = tk.Text(tab, height=5, width=40, font=("Courier", 12))
-        ingredients_text.pack(pady=5)
+        self.ingredients_text = tk.Text(tab, height=5, width=40, font=("Courier", 12))  # Make it an instance attribute
+        self.ingredients_text.pack(pady=5)
 
         tk.Label(tab, text="Instructions:", font=("Courier", 12)).pack(pady=10)
-        instructions_text = tk.Text(tab, height=8, width=40, font=("Courier", 12))
-        instructions_text.pack(pady=5)
+        self.instructions_text = tk.Text(tab, height=8, width=40, font=("Courier", 12))  # Make it an instance attribute
+        self.instructions_text.pack(pady=5)
 
         # Use CTkButton from customtkinter instead of tk.Button
-        add_button = CTkButton(tab, text="Add Recipe", command=lambda: self.add_recipe(recipe_name_entry.get(), ingredients_text.get("1.0", tk.END), instructions_text.get("1.0", tk.END)), font=("Courier", 14))
+        add_button = CTkButton(tab, text="Add Recipe", command=self.add_recipe, font=("Courier", 14))
         add_button.pack(pady=20)
 
-    def add_recipe(self, name, ingredients, instructions):
-        # Add logic to save the recipe to the database
+    def add_recipe(self):
+        # Get the user's ID from the stored username
+        self.cursor.execute("SELECT id FROM users WHERE username=?", (self.logged_in_username,))
+        user_id = self.cursor.fetchone()[0]
+
+        # Get the recipe details from the entry and text widgets
+        name = self.recipe_name_entry.get()
+        ingredients = self.ingredients_text.get("1.0", tk.END)
+        instructions = self.instructions_text.get("1.0", tk.END)
+
+        # Add the recipe to the 'recipes' table
+        self.cursor.execute("INSERT INTO recipes (user_id, name, ingredients, instructions) VALUES (?, ?, ?, ?)",
+                            (user_id, name, ingredients, instructions))
+        self.connection.commit()
+
         messagebox.showinfo("Info", f"Recipe '{name}' added successfully!")
+
+        # Clear the text fields after adding the recipe
+        self.recipe_name_entry.delete(0, tk.END)
+        self.ingredients_text.delete("1.0", tk.END)
+        self.instructions_text.delete("1.0", tk.END)
+
+        # Update the content of the "My Recipes" tab
+        self.update_my_recipes_tab()
+
+    def update_my_recipes_tab(self):
+        # Check if the "My Recipes" tab already exists
+        my_recipes_tab_exists = False
+        for tab_id in self.notebook.tabs():
+            if self.notebook.tab(tab_id, "text") == "My Recipes":
+                my_recipes_tab_exists = True
+                my_recipes_tab_id = tab_id
+                break
+
+        if my_recipes_tab_exists:
+            # Destroy existing content of the "My Recipes" tab
+            for widget in self.master.nametowidget(my_recipes_tab_id).winfo_children():
+                widget.destroy()
+
+            # Create and display the updated content for the "My Recipes" tab
+            self.create_my_recipes_tab(self.master.nametowidget(my_recipes_tab_id))
+        else:
+            # Create a new frame for the "My Recipes" tab
+            my_recipes_tab = ttk.Frame(self.notebook)
+            self.notebook.add(my_recipes_tab, text="My Recipes")
+
+            # Create and display the content for the "My Recipes" tab
+            self.create_my_recipes_tab(my_recipes_tab)
 
     def destroy_login_widgets(self):
         # Destroy login page widgets
@@ -204,6 +298,7 @@ class RecipeApp:
 def main():
     root = tk.Tk()
     app = RecipeApp(root)
+
     root.mainloop()
 
 if __name__ == "__main__":
