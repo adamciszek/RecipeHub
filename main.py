@@ -10,7 +10,7 @@ class RecipeApp:
     def __init__(self, master):
         self.master = master
         self.master.title("Recipe App")
-        self.master.geometry("600x400")
+        self.master.geometry("300x300")
         self.master.option_add("*Font", "Courier 12")
 
         self.logged_in_username = None
@@ -69,7 +69,6 @@ class RecipeApp:
 
         # Bind the Enter key to the login method
         self.master.bind('<Return>', lambda event: self.login())
-        self.master.geometry("300x300")
 
     def login(self):
         # Implement your login authentication logic here
@@ -173,7 +172,7 @@ class RecipeApp:
         self.create_add_recipe_tab(add_recipe_tab)
 
         # Window size
-        self.master.geometry("800x600")
+        self.master.geometry("700x800")
 
     def create_my_recipes_tab(self, tab):
         # Get the user's ID from the stored username
@@ -233,15 +232,18 @@ class RecipeApp:
 
         # Add Recipe Form Elements
         tk.Label(tab, text="Recipe Name:", font=("Courier", 12)).pack(pady=10)
-        self.recipe_name_entry = tk.Entry(tab, font=("Courier", 12))  # Make it an instance attribute
+        self.recipe_name_entry = tk.Entry(tab, font=("Courier", 12))
         self.recipe_name_entry.pack(pady=5)
 
         tk.Label(tab, text="Ingredients:", font=("Courier", 12)).pack(pady=10)
-        self.ingredients_text = tk.Text(tab, height=5, width=40, font=("Courier", 12))  # Make it an instance attribute
-        self.ingredients_text.pack(pady=5)
+        self.ingredients_entries = []  # List to store ingredient Entry widgets
+        for i in range(5):  # You can adjust the number of ingredient Entry widgets as needed
+            ingredient_entry = tk.Entry(tab, font=("Courier", 12))
+            ingredient_entry.pack(pady=5)
+            self.ingredients_entries.append(ingredient_entry)
 
         tk.Label(tab, text="Instructions:", font=("Courier", 12)).pack(pady=10)
-        self.instructions_text = tk.Text(tab, height=8, width=40, font=("Courier", 12))  # Make it an instance attribute
+        self.instructions_text = tk.Text(tab, height=8, width=40, font=("Courier", 12))
         self.instructions_text.pack(pady=5)
 
         # Use CTkButton from customtkinter instead of tk.Button
@@ -255,8 +257,16 @@ class RecipeApp:
 
         # Get the recipe details from the entry and text widgets
         name = self.recipe_name_entry.get()
-        ingredients = self.ingredients_text.get("1.0", tk.END)
+
+        # Get the ingredients from the Entry widgets
+        ingredients = "\n".join(entry.get() for entry in self.ingredients_entries)
+
         instructions = self.instructions_text.get("1.0", tk.END)
+
+        # Check if title, ingredients, and steps are not empty
+        if not name.strip() or not ingredients.strip() or not instructions.strip():
+            messagebox.showerror("Error", "Please provide a title, ingredients, and steps for the recipe.")
+            return
 
         # Add the recipe to the 'recipes' table
         self.cursor.execute("INSERT INTO recipes (user_id, name, ingredients, instructions) VALUES (?, ?, ?, ?)",
@@ -267,7 +277,8 @@ class RecipeApp:
 
         # Clear the text fields after adding the recipe
         self.recipe_name_entry.delete(0, tk.END)
-        self.ingredients_text.delete("1.0", tk.END)
+        for entry in self.ingredients_entries:
+            entry.delete(0, tk.END)
         self.instructions_text.delete("1.0", tk.END)
 
         # Update the content of the "My Recipes" tab
