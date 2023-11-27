@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+import tkinter.font as tkFont
 
 # Assume you have a customtkinter module with a CTkButton
 from customtkinter import CTkButton
@@ -11,7 +12,9 @@ class RecipeApp:
         self.master = master
         self.master.title("Recipe App")
         self.master.geometry("300x300")
-        self.master.option_add("*Font", "Courier 12")
+
+        azonix_font = tkFont.Font(family="Azonix", size=12)
+        self.master.option_add("*Font", azonix_font)
 
         self.logged_in_username = None
 
