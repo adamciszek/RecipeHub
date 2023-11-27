@@ -4,6 +4,8 @@ from tkinter import ttk, messagebox
 # Assume you have a customtkinter module with a CTkButton
 from customtkinter import CTkButton
 
+import sqlite3
+
 class RecipeApp:
     def __init__(self, master):
         self.master = master
@@ -13,6 +15,26 @@ class RecipeApp:
 
         # Initially, show the login page
         self.show_login_page()
+
+        # Connect to the SQLite database (or create a new one if it doesn't exist)
+        self.connection = sqlite3.connect("recipe_database.db")
+        self.cursor = self.connection.cursor()
+
+        # Create tables if they don't exist
+        self.create_tables()
+
+    def create_tables(self):
+        # Create a 'users' table
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY,
+                username TEXT UNIQUE,
+                password TEXT
+            )
+        ''')
+
+        # Commit the changes
+        self.connection.commit()
 
     def show_login_page(self):
         # Create widgets for the login page
@@ -35,8 +57,11 @@ class RecipeApp:
         username = self.entry_username.get()
         password = self.entry_password.get()
 
-        # Dummy authentication, replace with database check
-        if username == "example" and password == "password":
+        # Check if the username and password match a record in the 'users' table
+        self.cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
+        user = self.cursor.fetchone()
+
+        if user:
             # Destroy login page widgets
             self.destroy_login_widgets()
 
@@ -54,12 +79,22 @@ class RecipeApp:
         self.label_new_password = tk.Label(self.master, text="New Password:", font=("Courier", 14))
         self.entry_new_username = tk.Entry(self.master, font=("Courier", 14))
         self.entry_new_password = tk.Entry(self.master, show="*", font=("Courier", 14))
+
+        # Visual message for password requirements
+        self.password_requirements_label = tk.Label(self.master,
+                                                    text="Password must be at least 6 characters with at least one capital letter.",
+                                                    font=("Courier", 10), fg="gray")
+
         self.button_submit = CTkButton(self.master, text="Submit", command=self.create_account, font=("Courier", 14))
 
         self.label_new_username.pack(pady=10)
         self.entry_new_username.pack(pady=5)
         self.label_new_password.pack(pady=10)
         self.entry_new_password.pack(pady=5)
+
+        # Pack the visual message
+        self.password_requirements_label.pack(pady=5)
+
         self.button_submit.pack(pady=10)
 
     def create_account(self):
@@ -67,7 +102,29 @@ class RecipeApp:
         new_username = self.entry_new_username.get()
         new_password = self.entry_new_password.get()
 
+        # Check if the username already exists
+        self.cursor.execute("SELECT * FROM users WHERE username=?", (new_username,))
+        existing_user = self.cursor.fetchone()
+
+        if existing_user:
+            messagebox.showerror("Error", "Username already exists. Choose a different username.")
+            return
+
+        # Check if the password meets the criteria
+        if len(new_password) < 6 or not any(char.isupper() for char in new_password):
+            # Display an error message based on the password criteria
+            error_message = "Password must be at least 6 characters with at least one capital letter."
+            if len(new_password) < 6:
+                error_message = "Password must be at least 6 characters."
+            elif not any(char.isupper() for char in new_password):
+                error_message = "Password must contain at least one capital letter."
+            messagebox.showerror("Error", error_message)
+            return
+
         # Dummy account creation, replace with database insertion
+        self.cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (new_username, new_password))
+        self.connection.commit()
+
         messagebox.showinfo("Info", f"Account '{new_username}' created successfully!")
         self.destroy_create_account_widgets()
 
@@ -134,12 +191,14 @@ class RecipeApp:
         self.entry_password.destroy()
         self.button_login.destroy()
         self.button_create_account.destroy()
+
     def destroy_create_account_widgets(self):
-        # Destroy login page widgets
+        # Destroy create account page widgets
         self.label_new_username.destroy()
         self.label_new_password.destroy()
         self.entry_new_username.destroy()
         self.entry_new_password.destroy()
+        self.password_requirements_label.destroy()
         self.button_submit.destroy()
 
 def main():
