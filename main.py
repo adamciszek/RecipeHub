@@ -57,7 +57,8 @@ class RecipeApp:
         self.entry_username = tk.Entry(self.master, font=("Courier", 14))
         self.entry_password = tk.Entry(self.master, show="*", font=("Courier", 14))
         self.button_login = CTkButton(self.master, text="Login", command=self.login, font=("Courier", 14))
-        self.button_create_account = CTkButton(self.master, text="Create Account", command=self.show_create_account_page, font=("Courier", 14))
+        self.button_create_account = CTkButton(self.master, text="Create Account",
+                                               command=self.show_create_account_page, font=("Courier", 14))
 
         self.label_username.pack(pady=10)
         self.entry_username.pack(pady=5)
@@ -66,6 +67,8 @@ class RecipeApp:
         self.button_login.pack(pady=10)
         self.button_create_account.pack(pady=10)
 
+        # Bind the Enter key to the login method
+        self.master.bind('<Return>', lambda event: self.login())
         self.master.geometry("300x300")
 
     def login(self):
@@ -157,16 +160,16 @@ class RecipeApp:
 
         # Create tabs
         my_recipes_tab = ttk.Frame(self.notebook)
-        all_recipes_tab = ttk.Frame(self.notebook)
+        other_recipes_tab = ttk.Frame(self.notebook)
         add_recipe_tab = ttk.Frame(self.notebook)
 
         self.notebook.add(my_recipes_tab, text="My Recipes")
-        self.notebook.add(all_recipes_tab, text="All Recipes")
+        self.notebook.add(other_recipes_tab, text="Other Recipes")
         self.notebook.add(add_recipe_tab, text="Add Recipe")
 
         # Content for each tab
         self.create_my_recipes_tab(my_recipes_tab)
-        self.create_all_recipes_tab(all_recipes_tab)
+        self.create_other_recipes_tab(other_recipes_tab)
         self.create_add_recipe_tab(add_recipe_tab)
 
         # Window size
@@ -203,9 +206,26 @@ class RecipeApp:
         tk.Label(recipe_details_window, text="Instructions:", font=("Courier", 12)).pack(pady=5)
         tk.Label(recipe_details_window, text=recipe_details[1], font=("Courier", 12)).pack(pady=5)
 
-    def create_all_recipes_tab(self, tab):
-        label = tk.Label(tab, text="Display All Recipes content here", font=("Courier", 16))
-        label.pack(padx=20, pady=20)
+    def create_other_recipes_tab(self, tab):
+        # Get recipes created by other users
+        other_recipes = self.get_other_users_recipes()
+
+        # Display the recipe names
+        for recipe in other_recipes:
+            recipe_name_label = tk.Label(tab, text=recipe[0], font=("Courier", 14))
+            recipe_name_label.pack(pady=5)
+            recipe_name_label.bind("<Button-1>", lambda event, name=recipe[0]: self.show_recipe_details(name, tab))
+
+    def get_other_users_recipes(self):
+        # Get the user's ID from the stored username
+        self.cursor.execute("SELECT id FROM users WHERE username=?", (self.logged_in_username,))
+        user_id = self.cursor.fetchone()[0]
+
+        # Retrieve recipes created by other users
+        self.cursor.execute("SELECT name FROM recipes WHERE user_id != ?", (user_id,))
+        recipes = self.cursor.fetchall()
+
+        return recipes
 
     def create_add_recipe_tab(self, tab):
         label = tk.Label(tab, text="Add Recipe Form", font=("Courier", 16))
